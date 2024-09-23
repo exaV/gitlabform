@@ -7,6 +7,7 @@ from gitlabform.lists import OmissionReason, Groups, Projects
 from gitlabform.lists.groups import GroupsProvider
 
 from gitlabform.gitlab.core import NotFoundException
+from tests.acceptance.conftest import project
 
 
 class ProjectsProvider(GroupsProvider):
@@ -19,10 +20,11 @@ class ProjectsProvider(GroupsProvider):
     """
 
     def __init__(
-        self, gitlab, configuration, include_archived_projects, recurse_subgroups
+        self, gitlab, configuration, include_archived_projects, target_mode
     ):
-        super().__init__(gitlab, configuration, recurse_subgroups)
+        super().__init__(gitlab, configuration, target_mode)
         self.include_archived_projects = include_archived_projects
+        self.target_mode = target_mode
 
     def get_projects(self, target: str) -> Projects:
         """
@@ -32,13 +34,28 @@ class ProjectsProvider(GroupsProvider):
 
         groups = self.get_groups(target)
 
-        if target not in ["ALL", "ALL_DEFINED"]:
+
+        if target in ["ALL", "ALL_DEFINED"]:
+            projects = self._get_projects(target, groups)
+        elif self.target_mode == "LEGACY":
             if len(groups.get_effective()) == 1:
                 projects = self._get_projects(target, groups)
             else:
                 projects = self._get_single_project(target)
         else:
-            projects = self._get_projects(target, groups)
+            # with target_mode == 'STRICT' we differentiate between targets with the following endings:
+            # /** or /* -> target is a group and we want to include all its projects and subgroups
+            # else -> target is a single project or a group (without its subgroups or projects)
+            real_target = target.removesuffix("/**").removesuffix("/*")
+            if real_target == target:
+                # if we already have a group we must not load projects
+                if len(groups.get_effective()) > 0:
+                    projects = Projects()
+                else:
+                    projects = self._get_single_project(real_target)
+            else:
+                # target ends with `/*` or `/**` -> we need to load projects of groups
+                projects = self._get_projects(real_target, groups)
 
         return projects
 

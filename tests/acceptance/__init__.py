@@ -253,7 +253,7 @@ def run_gitlabform(
     include_archived_projects=True,
     noop=False,
     output_file=None,
-    recurse_subgroups=True,
+    target_mode="LEGACY",
 ):
     # f-strings with """ used as configs have the disadvantage of having indentation in them - let's remove it here
     config = textwrap.dedent(config)
@@ -273,6 +273,6 @@ def run_gitlabform(
         target=target,
         noop=noop,
         output_file=output_file,
-        recurse_subgroups=recurse_subgroups,
+        target_mode=target_mode,
     )
     gf.run()

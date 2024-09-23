@@ -11,10 +11,9 @@ class GroupsProvider:
     and the fact that the group and project names case are somewhat case-sensitive.
     """
 
-    def __init__(self, gitlab, configuration, recurse_subgroups):
+    def __init__(self, gitlab, configuration):
         self.gitlab = gitlab
         self.configuration = configuration
-        self.recurse_subgroups = recurse_subgroups
 
     def get_groups(self, target: str) -> Groups:
         """
@@ -23,22 +22,24 @@ class GroupsProvider:
         """
 
         if target not in ["ALL", "ALL_DEFINED"]:
-            groups = self._get_single_group(target, self.recurse_subgroups)
+            groups = self._get_single_group(target)
         else:
             groups = self._get_groups(target)
 
         return groups
 
-    def _get_single_group(self, target: str, recurse_subgroups: bool) -> Groups:
+    def _get_single_group(self, target: str) -> Groups:
         groups = Groups()
+
+        real_target = target.removesuffix("/**").removesuffix("/*")
 
         # it may be a subgroup or a group...
         try:
-            maybe_group = self.gitlab.get_group_case_insensitive(target)
+            maybe_group = self.gitlab.get_group_case_insensitive(real_target)
             path = maybe_group["full_path"]
             groups.add_requested([path])
 
-            if recurse_subgroups:
+            if target.endswith("/**"):
                 descendants = self.gitlab.get_group_descendants(path)
                 groups.add_requested([group["full_path"] for group in descendants])
 
